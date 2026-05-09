@@ -1,23 +1,66 @@
-const STORAGE_KEY = 'tripSyncData';
+const STORAGE_KEY = 'tripSyncData_v2';
+const OLD_STORAGE_KEY = 'tripSyncData';
+
+let appData = {
+    currentTripId: null,
+    trips: {}
+};
 
 let dayCount = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadFromLocalStorage();
-    if (dayCount === 0) {
-        addDay(); // Add one day if empty
+    initData();
+    if (!appData.currentTripId) {
+        createNewTrip();
+    } else {
+        loadTripIntoBuilder(appData.currentTripId);
     }
-    updatePreview();
 });
 
-// --- Local Storage Management ---
+// --- Data & Local Storage Management ---
+
+function generateId() {
+    return 'trip_' + Math.random().toString(36).substr(2, 9);
+}
+
+function initData() {
+    const dataStr = localStorage.getItem(STORAGE_KEY);
+    if (dataStr) {
+        try {
+            appData = JSON.parse(dataStr);
+        } catch(e) {
+            console.error("Parse error for v2 data", e);
+        }
+    } else {
+        // Migration from V1
+        const oldDataStr = localStorage.getItem(OLD_STORAGE_KEY);
+        if (oldDataStr) {
+            try {
+                const oldTrip = JSON.parse(oldDataStr);
+                const newId = generateId();
+                appData.trips[newId] = oldTrip;
+                appData.trips[newId].lastModified = Date.now();
+                appData.currentTripId = newId;
+                saveAppData();
+                localStorage.removeItem(OLD_STORAGE_KEY);
+            } catch(e) {}
+        }
+    }
+}
+
+function saveAppData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+}
 
 function autoSave() {
+    if (!appData.currentTripId) return;
+
     const state = {
         tripTitle: document.getElementById('tripTitleInput').value,
         routeSummary: document.getElementById('routeSummaryInput').value,
         duration: document.getElementById('durationInput').value,
         coverImage: document.getElementById('docHeaderBanner').style.backgroundImage,
+        lastModified: Date.now(),
         days: []
     };
 
@@ -28,16 +71,11 @@ function autoSave() {
         const date = panel.querySelector('.day-date-input').value;
         const stay = panel.querySelector('.day-stay-input').value;
         
-        // Gather images
         const images = [];
         panel.querySelectorAll('.thumb-container img').forEach(img => {
-            images.push({
-                src: img.src,
-                fit: img.dataset.fit || 'cover'
-            });
+            images.push({ src: img.src, fit: img.dataset.fit || 'cover' });
         });
 
-        // Gather activities
         const activities = [];
         panel.querySelectorAll('.activity-row').forEach(row => {
             activities.push({
@@ -50,99 +88,184 @@ function autoSave() {
         state.days.push({ dayId, route, transport, date, stay, images, activities });
     });
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    appData.trips[appData.currentTripId] = state;
+    saveAppData();
     updatePreview();
 }
 
-function loadFromLocalStorage() {
-    const dataStr = localStorage.getItem(STORAGE_KEY);
-    if (!dataStr) return;
+// --- Multi-Trip Actions ---
 
-    try {
-        const state = JSON.parse(dataStr);
-        
-        document.getElementById('tripTitleInput').value = state.tripTitle || '';
-        document.getElementById('routeSummaryInput').value = state.routeSummary || '';
-        document.getElementById('durationInput').value = state.duration || '';
-        
-        if (state.coverImage && state.coverImage !== 'none') {
-            const docHeader = document.getElementById('docHeaderBanner');
-            docHeader.style.backgroundImage = state.coverImage;
-            docHeader.style.display = 'block';
-        }
+function createNewTrip() {
+    const newId = generateId();
+    appData.currentTripId = newId;
+    appData.trips[newId] = {
+        tripTitle: 'Untitled Trip',
+        routeSummary: '',
+        duration: '',
+        coverImage: '',
+        lastModified: Date.now(),
+        days: []
+    };
+    saveAppData();
+    loadTripIntoBuilder(newId);
+    closeTripsModal();
+}
 
-        const daysManager = document.getElementById('daysManager');
-        daysManager.innerHTML = '';
-        dayCount = 0;
+function duplicateTrip() {
+    if (!appData.currentTripId) return;
+    autoSave(); // ensure current is saved
+    
+    const currentData = JSON.parse(JSON.stringify(appData.trips[appData.currentTripId]));
+    const newId = generateId();
+    
+    currentData.tripTitle = currentData.tripTitle ? currentData.tripTitle + ' (Copy)' : 'Untitled (Copy)';
+    currentData.lastModified = Date.now();
+    
+    appData.trips[newId] = currentData;
+    appData.currentTripId = newId;
+    saveAppData();
+    loadTripIntoBuilder(newId);
+    alert("Trip duplicated! You are now editing the copy.");
+}
 
-        if (state.days && state.days.length > 0) {
-            state.days.forEach(day => {
-                dayCount++;
-                const clone = document.getElementById('dayBuilderTemplate').content.cloneNode(true);
-                const panel = clone.querySelector('.day-panel');
-                panel.dataset.dayId = dayCount;
-                clone.querySelector('.day-number').textContent = dayCount;
+function loadTripIntoBuilder(tripId) {
+    appData.currentTripId = tripId;
+    saveAppData();
+    
+    const state = appData.trips[tripId];
+    if (!state) return;
 
-                panel.querySelector('.day-route-input').value = day.route || '';
-                panel.querySelector('.day-transport-input').value = day.transport || '';
-                panel.querySelector('.day-date-input').value = day.date || '';
-                panel.querySelector('.day-stay-input').value = day.stay || '';
+    document.getElementById('tripTitleInput').value = state.tripTitle === 'Untitled Trip' ? '' : (state.tripTitle || '');
+    document.getElementById('routeSummaryInput').value = state.routeSummary || '';
+    document.getElementById('durationInput').value = state.duration || '';
+    
+    const docHeader = document.getElementById('docHeaderBanner');
+    if (state.coverImage && state.coverImage !== 'none' && state.coverImage !== '') {
+        docHeader.style.backgroundImage = state.coverImage;
+        docHeader.style.display = 'block';
+    } else {
+        docHeader.style.backgroundImage = '';
+        docHeader.style.display = 'none';
+        document.getElementById('coverImageInput').value = '';
+    }
 
-                // Load images
-                const thumbContainer = panel.querySelector('.day-thumbnails');
-                if (day.images) {
-                    day.images.forEach(imgData => {
-                        thumbContainer.appendChild(createThumbnailElement(imgData.src, imgData.fit));
-                    });
-                }
+    const daysManager = document.getElementById('daysManager');
+    daysManager.innerHTML = '';
+    dayCount = 0;
 
-                // Load activities
-                const activitiesList = panel.querySelector('.activities-list');
-                if (day.activities && day.activities.length > 0) {
-                    day.activities.forEach(act => {
-                        const actClone = document.getElementById('activityBuilderTemplate').content.cloneNode(true);
-                        actClone.querySelector('.act-time').value = act.time || '';
-                        actClone.querySelector('.act-desc').value = act.desc || '';
-                        actClone.querySelector('.act-notes').value = act.notes || '';
-                        activitiesList.appendChild(actClone);
-                    });
-                } else {
-                    // add empty activity if none
-                    activitiesList.appendChild(document.getElementById('activityBuilderTemplate').content.cloneNode(true));
-                }
-                
-                daysManager.appendChild(clone);
-            });
-        }
-    } catch (e) {
-        console.error("Failed to parse local storage", e);
+    if (state.days && state.days.length > 0) {
+        state.days.forEach(day => {
+            dayCount++;
+            const clone = document.getElementById('dayBuilderTemplate').content.cloneNode(true);
+            const panel = clone.querySelector('.day-panel');
+            panel.dataset.dayId = dayCount;
+            clone.querySelector('.day-number').textContent = dayCount;
+
+            panel.querySelector('.day-route-input').value = day.route || '';
+            panel.querySelector('.day-transport-input').value = day.transport || '';
+            panel.querySelector('.day-date-input').value = day.date || '';
+            panel.querySelector('.day-stay-input').value = day.stay || '';
+
+            const thumbContainer = panel.querySelector('.day-thumbnails');
+            if (day.images) {
+                day.images.forEach(imgData => {
+                    thumbContainer.appendChild(createThumbnailElement(imgData.src, imgData.fit));
+                });
+            }
+
+            const activitiesList = panel.querySelector('.activities-list');
+            if (day.activities && day.activities.length > 0) {
+                day.activities.forEach(act => {
+                    const actClone = document.getElementById('activityBuilderTemplate').content.cloneNode(true);
+                    actClone.querySelector('.act-time').value = act.time || '';
+                    actClone.querySelector('.act-desc').value = act.desc || '';
+                    actClone.querySelector('.act-notes').value = act.notes || '';
+                    activitiesList.appendChild(actClone);
+                });
+            } else {
+                activitiesList.appendChild(document.getElementById('activityBuilderTemplate').content.cloneNode(true));
+            }
+            daysManager.appendChild(clone);
+        });
+    } else {
+        addDay(); // empty day if nothing
+    }
+
+    updatePreview();
+    closeTripsModal();
+}
+
+function clearCurrentTrip() {
+    if (confirm("Clear this trip entirely?")) {
+        const id = appData.currentTripId;
+        appData.trips[id] = { tripTitle: '', routeSummary: '', duration: '', coverImage: '', days: [], lastModified: Date.now() };
+        loadTripIntoBuilder(id);
     }
 }
 
-function clearAllData() {
-    if (confirm("Are you sure you want to clear all data? This cannot be undone.")) {
-        localStorage.removeItem(STORAGE_KEY);
-        location.reload();
+// --- Modal Management ---
+
+function openTripsModal() {
+    autoSave();
+    const container = document.getElementById('tripsListContainer');
+    container.innerHTML = '';
+    
+    const tripsArray = Object.entries(appData.trips).map(([id, data]) => ({ id, ...data }));
+    tripsArray.sort((a, b) => b.lastModified - a.lastModified); // newest first
+
+    if (tripsArray.length === 0) {
+        container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No saved trips found.</p>';
+    } else {
+        tripsArray.forEach(trip => {
+            const dateStr = new Date(trip.lastModified).toLocaleString();
+            const div = document.createElement('div');
+            div.className = `trip-item ${trip.id === appData.currentTripId ? 'active-trip' : ''}`;
+            div.onclick = () => loadTripIntoBuilder(trip.id);
+            div.innerHTML = `
+                <div class="trip-item-info">
+                    <div class="trip-item-title">${trip.tripTitle || 'Untitled Trip'}</div>
+                    <div class="trip-item-date">Last updated: ${dateStr}</div>
+                </div>
+                <button class="icon-btn" onclick="deleteTrip('${trip.id}', event)" title="Delete"><i class="fa-solid fa-trash"></i></button>
+            `;
+            container.appendChild(div);
+        });
+    }
+    
+    document.getElementById('tripsModal').classList.add('active');
+}
+
+function closeTripsModal() {
+    document.getElementById('tripsModal').classList.remove('active');
+}
+
+function deleteTrip(id, event) {
+    event.stopPropagation();
+    if (confirm("Delete this trip permanently?")) {
+        delete appData.trips[id];
+        if (appData.currentTripId === id) {
+            appData.currentTripId = null;
+        }
+        saveAppData();
+        openTripsModal(); // refresh list
+        if (!appData.currentTripId) {
+            createNewTrip();
+        }
     }
 }
 
-
-// --- DOM Management ---
+// --- DOM Builder Management ---
 
 function addDay() {
     dayCount++;
     const daysManager = document.getElementById('daysManager');
-    const template = document.getElementById('dayBuilderTemplate');
-    const clone = template.content.cloneNode(true);
+    const clone = document.getElementById('dayBuilderTemplate').content.cloneNode(true);
     
     const dayPanel = clone.querySelector('.day-panel');
     dayPanel.dataset.dayId = dayCount;
     clone.querySelector('.day-number').textContent = dayCount;
     
-    const activitiesList = clone.querySelector('.activities-list');
-    const actTemplate = document.getElementById('activityBuilderTemplate');
-    activitiesList.appendChild(actTemplate.content.cloneNode(true));
-
+    clone.querySelector('.activities-list').appendChild(document.getElementById('activityBuilderTemplate').content.cloneNode(true));
     daysManager.appendChild(clone);
     autoSave();
 }
@@ -154,9 +277,8 @@ function removeDay(btn) {
 }
 
 function reindexDays() {
-    const dayPanels = document.querySelectorAll('.day-panel');
     dayCount = 0;
-    dayPanels.forEach(panel => {
+    document.querySelectorAll('.day-panel').forEach(panel => {
         dayCount++;
         panel.dataset.dayId = dayCount;
         panel.querySelector('.day-number').textContent = dayCount;
@@ -164,9 +286,8 @@ function reindexDays() {
 }
 
 function addActivity(btn) {
-    const activitiesList = btn.closest('.activities-manager').querySelector('.activities-list');
-    const template = document.getElementById('activityBuilderTemplate');
-    activitiesList.appendChild(template.content.cloneNode(true));
+    btn.closest('.activities-manager').querySelector('.activities-list')
+        .appendChild(document.getElementById('activityBuilderTemplate').content.cloneNode(true));
     autoSave();
 }
 
@@ -196,7 +317,6 @@ function handleDayImagesUpload(input, event) {
     const thumbContainer = input.closest('.day-images-manager').querySelector('.day-thumbnails');
     const files = Array.from(event.target.files);
     
-    // Check limit
     const currentCount = thumbContainer.children.length;
     if (currentCount + files.length > 3) {
         alert("Maximum 3 images allowed per day!");
@@ -220,21 +340,19 @@ function createThumbnailElement(src, fit) {
         <img src="${src}" data-fit="${fit}" title="Click to toggle Fit/Fill" onclick="toggleImageFit(this)">
         <button class="thumb-del-btn" onclick="removeImage(this, event)"><i class="fa-solid fa-times"></i></button>
     `;
-    // Initial style application
     div.querySelector('img').style.objectFit = fit;
     return div;
 }
 
 function toggleImageFit(img) {
-    const currentFit = img.dataset.fit;
-    const newFit = currentFit === 'cover' ? 'contain' : 'cover';
+    const newFit = img.dataset.fit === 'cover' ? 'contain' : 'cover';
     img.dataset.fit = newFit;
     img.style.objectFit = newFit;
     autoSave();
 }
 
 function removeImage(btn, event) {
-    event.stopPropagation(); // prevent triggering image toggle
+    event.stopPropagation();
     btn.closest('.thumb-container').remove();
     autoSave();
 }
@@ -250,7 +368,6 @@ function updatePreview() {
     document.getElementById('docRouteSummary').textContent = routeVal;
     document.getElementById('docDuration').textContent = document.getElementById('durationInput').value || 'Duration Here';
 
-    // Show header if title or cover image exists
     const docHeader = document.getElementById('docHeaderBanner');
     if (titleVal !== 'YOUR TRIP TITLE' || docHeader.style.backgroundImage) {
         docHeader.style.display = 'block';
@@ -261,9 +378,7 @@ function updatePreview() {
     const docDaysContainer = document.getElementById('docDaysContainer');
     docDaysContainer.innerHTML = '';
 
-    const dayPanels = document.querySelectorAll('.day-panel');
-    
-    dayPanels.forEach(panel => {
+    document.querySelectorAll('.day-panel').forEach(panel => {
         const dayId = panel.dataset.dayId;
         const route = panel.querySelector('.day-route-input').value || 'Route Summary';
         const transport = panel.querySelector('.day-transport-input').value || '';
@@ -271,14 +386,12 @@ function updatePreview() {
         const stay = panel.querySelector('.day-stay-input').value || 'Location';
 
         const docClone = document.getElementById('docDayTemplate').content.cloneNode(true);
-        
         docClone.querySelector('.doc-day-num').textContent = dayId;
         docClone.querySelector('.doc-day-route').textContent = route;
         docClone.querySelector('.doc-day-transport').textContent = transport ? `(${transport})` : '';
         docClone.querySelector('.doc-date-val').textContent = date;
         docClone.querySelector('.doc-stay-val').textContent = stay;
 
-        // Add Day Images
         const docImagesContainer = docClone.querySelector('.doc-day-images');
         const thumbs = panel.querySelectorAll('.thumb-container img');
         if (thumbs.length > 0) {
@@ -292,22 +405,15 @@ function updatePreview() {
             docImagesContainer.style.display = 'none';
         }
 
-        // Process activities
         const tbody = docClone.querySelector('.doc-activities-tbody');
-        const actRows = panel.querySelectorAll('.activity-row');
-        
-        actRows.forEach(row => {
+        panel.querySelectorAll('.activity-row').forEach(row => {
             const time = row.querySelector('.act-time').value;
             const desc = row.querySelector('.act-desc').value;
             const notes = row.querySelector('.act-notes').value;
             
             if (time || desc || notes) {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${time}</td>
-                    <td>${desc}</td>
-                    <td>${notes}</td>
-                `;
+                tr.innerHTML = `<td>${time}</td><td>${desc}</td><td>${notes}</td>`;
                 tbody.appendChild(tr);
             }
         });
@@ -325,14 +431,13 @@ function downloadPDF() {
     const tripTitle = document.getElementById('tripTitleInput').value || 'Itinerary';
     const filename = tripTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf';
     
-    // Add specific print class to body just in case
     document.body.classList.add('is-printing');
     
     const opt = {
         margin:       0,
         filename:     filename,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#111827' }, // ensure dark bg for canvas
+        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#111827' },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 

@@ -15,7 +15,10 @@
         <!-- Builder Section -->
         <div class="builder-section no-print">
             <div class="glass-panel header-panel">
-                <h1><i class="fa-solid fa-map-location-dot"></i> TripSync Builder</h1>
+                <div class="header-top">
+                    <h1><i class="fa-solid fa-map-location-dot"></i> TripSync</h1>
+                    <button class="btn outline-btn small-btn" onclick="openTripsModal()"><i class="fa-solid fa-folder-open"></i> My Trips</button>
+                </div>
                 <p>Create your beautiful dark-themed itinerary</p>
             </div>
 
@@ -47,7 +50,8 @@
             
             <div class="action-buttons">
                 <button class="btn primary-btn" onclick="addDay()"><i class="fa-solid fa-plus"></i> Add Day</button>
-                <button class="btn danger-btn" onclick="clearAllData()"><i class="fa-solid fa-trash-can"></i> Clear</button>
+                <button class="btn warning-btn" onclick="duplicateTrip()" title="Save as a copy"><i class="fa-solid fa-copy"></i> Duplicate</button>
+                <button class="btn danger-btn" onclick="clearCurrentTrip()" title="Clear this trip"><i class="fa-solid fa-eraser"></i> Clear</button>
                 <button class="btn success-btn" onclick="downloadPDF()"><i class="fa-solid fa-download"></i> Download PDF</button>
             </div>
         </div>
@@ -79,6 +83,22 @@
                     <div id="docDaysContainer">
                         <!-- Day sections injected here -->
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Trips Modal -->
+    <div class="modal-overlay" id="tripsModal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-folder-open"></i> My Trips</h2>
+                <button class="icon-btn" onclick="closeTripsModal()"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <button class="btn primary-btn full-width" onclick="createNewTrip()"><i class="fa-solid fa-file-circle-plus"></i> Create New Trip</button>
+                <div class="trips-list" id="tripsListContainer">
+                    <!-- Trip items injected here -->
                 </div>
             </div>
         </div>

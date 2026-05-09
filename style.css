@@ -9,9 +9,10 @@
     --accent: #38bdf8;
     --accent-hover: #0ea5e9;
     --danger: #f43f5e;
+    --warning: #fbbf24;
     
     /* Dark Document/Print Styles */
-    --doc-bg: #111827; /* Very dark slate */
+    --doc-bg: #111827;
     --doc-text: #e2e8f0;
     --doc-heading: #38bdf8;
     --doc-border: rgba(255, 255, 255, 0.1);
@@ -49,7 +50,7 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
 
 /* ==========================================================================
-   Builder Section (Glassmorphic)
+   Builder Section
    ========================================================================== */
 .builder-section {
     flex: 1;
@@ -70,62 +71,38 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; }
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     transition: transform 0.2s, box-shadow 0.2s;
 }
-.glass-panel:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-}
+.glass-panel:hover { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); }
 
 .header-panel { text-align: center; }
-.header-panel h1 { color: var(--accent); margin-bottom: 8px; font-size: 2rem; }
-.header-panel p { color: var(--text-secondary); }
+.header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.header-top h1 { color: var(--accent); font-size: 2rem; margin: 0; }
+.header-panel p { color: var(--text-secondary); text-align: left; }
 
 .settings-panel h2 {
-    margin-bottom: 16px;
-    font-size: 1.2rem;
-    border-bottom: 1px solid var(--glass-border);
-    padding-bottom: 8px;
-    color: var(--accent);
+    margin-bottom: 16px; font-size: 1.2rem;
+    border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; color: var(--accent);
 }
 
 .input-group { margin-bottom: 16px; }
 .input-group label {
-    display: block;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    display: block; font-size: 0.85rem; color: var(--text-secondary);
+    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
 }
 .input-group label i { margin-right: 6px; }
 
 .input-group input {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    padding: 12px 16px;
-    color: #fff;
-    font-family: 'Inter', sans-serif;
+    width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--glass-border);
+    border-radius: 8px; padding: 12px 16px; color: #fff; font-family: 'Inter', sans-serif;
     transition: all 0.3s ease;
 }
 .input-group input:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
-    background: rgba(0, 0, 0, 0.5);
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2); background: rgba(0, 0, 0, 0.5);
 }
-.input-group input[type="file"] {
-    padding: 8px;
-    cursor: pointer;
-}
+.input-group input[type="file"] { padding: 8px; cursor: pointer; }
 .input-group input[type="file"]::file-selector-button {
-    background: var(--accent);
-    color: #000;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    margin-right: 12px;
+    background: var(--accent); color: #000; border: none; padding: 8px 12px;
+    border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 12px;
 }
 
 .row-group { display: flex; gap: 16px; }
@@ -140,39 +117,25 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; }
     to { opacity: 1; transform: translateY(0); }
 }
 
-.day-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
+.day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .day-header h3 { color: var(--accent); font-size: 1.4rem; }
 
-/* Day Images Builder */
+/* Day Images */
 .day-images-manager {
-    margin-top: 16px;
-    padding: 12px;
-    background: rgba(0,0,0,0.2);
-    border-radius: 8px;
-    border: 1px dashed var(--glass-border);
+    margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.2);
+    border-radius: 8px; border: 1px dashed var(--glass-border);
 }
 .day-images-manager label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    display: block; margin-bottom: 8px;
+    font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 8px;
 }
 .day-photo-input { width: 100%; margin-bottom: 10px; color: #fff;}
-.day-thumbnails {
-    display: flex; gap: 10px; flex-wrap: wrap;
-}
+.day-thumbnails { display: flex; gap: 10px; flex-wrap: wrap; }
 .thumb-container {
     position: relative; width: 80px; height: 80px; border-radius: 6px; overflow: hidden;
     border: 2px solid transparent; cursor: pointer;
 }
 .thumb-container:hover { border-color: var(--accent); }
-.thumb-container img {
-    width: 100%; height: 100%; object-fit: cover;
-}
+.thumb-container img { width: 100%; height: 100%; object-fit: cover; }
 .thumb-container img[data-fit="contain"] { object-fit: contain; background: #000; }
 .thumb-del-btn {
     position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.7);
@@ -180,12 +143,8 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; }
     font-size: 10px; cursor: pointer;
 }
 
-.activities-manager h4 {
-    margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary);
-}
-
+.activities-manager h4 { margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; color: var(--text-primary); }
 .activities-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
-
 .activity-row { display: flex; gap: 10px; align-items: center; }
 .activity-row input.act-time { width: 120px; }
 .activity-row input.act-desc { flex: 2; }
@@ -206,10 +165,14 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; }
 .danger-btn { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
 .danger-btn:hover { background: var(--danger); color: #fff; }
 
-.outline-btn { background: transparent; border: 1px dashed var(--glass-border); color: var(--text-secondary); }
-.outline-btn:hover { border-color: white; color: white; }
+.warning-btn { background: transparent; border: 1px solid var(--warning); color: var(--warning); }
+.warning-btn:hover { background: var(--warning); color: #000; }
+
+.outline-btn { background: transparent; border: 1px solid var(--glass-border); color: var(--text-secondary); }
+.outline-btn:hover { border-color: white; color: white; background: rgba(255,255,255,0.1); }
 
 .small-btn { padding: 8px 16px; font-size: 0.85rem; }
+.full-width { width: 100%; }
 
 .icon-btn {
     background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
@@ -223,43 +186,62 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; }
     padding: 20px 0 10px 0; z-index: 10;
 }
 
+/* ==========================================================================
+   Trips Modal
+   ========================================================================== */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+    display: none; justify-content: center; align-items: center; z-index: 100;
+}
+.modal-overlay.active { display: flex; }
+
+.modal-content {
+    width: 450px; max-height: 80vh; display: flex; flex-direction: column; padding: 0;
+}
+.modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px; border-bottom: 1px solid var(--glass-border);
+}
+.modal-header h2 { color: var(--accent); }
+.modal-body {
+    padding: 20px; overflow-y: auto; flex: 1;
+}
+
+.trips-list { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+.trip-item {
+    background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
+    border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between;
+    align-items: center; cursor: pointer; transition: 0.2s;
+}
+.trip-item:hover { border-color: var(--accent); background: rgba(0,0,0,0.5); }
+.trip-item.active-trip { border-color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+
+.trip-item-info { flex: 1; }
+.trip-item-title { font-weight: 600; margin-bottom: 4px; color: #fff; }
+.trip-item-date { font-size: 0.8rem; color: var(--text-secondary); }
 
 /* ==========================================================================
-   Preview / Export Section (Dark Glassmorphic Theme)
+   Preview / Export Section
    ========================================================================== */
 .preview-section {
-    flex: 1;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 16px;
-    overflow-y: auto;
-    display: flex;
-    justify-content: center;
-    padding: 20px;
+    flex: 1; background: rgba(0, 0, 0, 0.4); border-radius: 16px;
+    overflow-y: auto; display: flex; justify-content: center; padding: 20px;
     border: 1px solid var(--glass-border);
 }
 
 .document-page {
-    background: var(--doc-bg);
-    color: var(--doc-text);
-    width: 210mm;
-    min-height: 297mm;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    font-family: 'Inter', Arial, sans-serif;
-    position: relative;
-    overflow: hidden; /* For banner */
+    background: var(--doc-bg); color: var(--doc-text); width: 210mm; min-height: 297mm;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5); font-family: 'Inter', Arial, sans-serif;
+    position: relative; overflow: hidden;
 }
 
 .doc-header {
-    height: 200px;
-    background-color: #1e293b;
-    background-size: cover;
-    background-position: center;
-    position: relative;
-    display: none; /* Shown via JS when image or title exists */
+    height: 200px; background-color: #1e293b; background-size: cover; background-position: center;
+    position: relative; display: none;
 }
 .doc-header-overlay {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
+    position: absolute; bottom: 0; left: 0; right: 0;
     background: linear-gradient(to top, rgba(17, 24, 39, 1), rgba(17, 24, 39, 0));
     padding: 40px 30px 20px 30px;
 }
@@ -270,7 +252,6 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; }
 .route-summary { font-style: italic; color: #cbd5e1; font-size: 16px; }
 
 .doc-content-wrapper { padding: 30px; }
-
 .doc-section { margin-bottom: 35px; }
 .section-title {
     font-size: 20px; color: var(--doc-heading); margin-bottom: 15px;
@@ -287,17 +268,13 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; }
     border: 1px solid var(--doc-border); border-radius: 12px; overflow: hidden;
 }
 .doc-day-header {
-    background: rgba(255,255,255,0.05); padding: 15px 20px;
-    border-bottom: 1px solid var(--doc-border);
+    background: rgba(255,255,255,0.05); padding: 15px 20px; border-bottom: 1px solid var(--doc-border);
 }
 .doc-day-title { font-size: 22px; color: var(--doc-heading); margin-bottom: 8px; }
 .doc-day-meta { font-size: 15px; color: #94a3b8; display: flex; gap: 20px; }
 .doc-day-meta i { color: var(--doc-heading); }
 
-/* PDF Day Images */
-.doc-day-images {
-    display: flex; gap: 15px; padding: 20px; justify-content: center;
-}
+.doc-day-images { display: flex; gap: 15px; padding: 20px; justify-content: center; }
 .doc-day-images img {
     width: 30%; aspect-ratio: 4/3; border-radius: 8px; border: 1px solid var(--doc-border);
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -315,12 +292,9 @@ h1, h2, h3, h4 { font-family: 'Outfit', sans-serif; }
 .doc-activities-table tr:last-child td { border-bottom: none; }
 .doc-activities-table tr td:first-child { font-weight: 600; color: var(--doc-heading); }
 
-/* ==========================================================================
-   Print Adjustments (Keep it dark for PDF!)
-   ========================================================================== */
 @media print {
     body { background: var(--doc-bg); -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 0; margin: 0; }
-    .no-print { display: none !important; }
+    .no-print, .modal-overlay { display: none !important; }
     .app-container { display: block; height: auto; max-width: none; background: var(--doc-bg); }
     .preview-section { background: var(--doc-bg); padding: 0; display: block; border: none; }
     .document-page { box-shadow: none; width: 100%; min-height: auto; padding: 0; }
