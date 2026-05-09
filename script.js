@@ -32,7 +32,6 @@ function initData() {
             console.error("Parse error for v2 data", e);
         }
     } else {
-        // Migration from V1
         const oldDataStr = localStorage.getItem(OLD_STORAGE_KEY);
         if (oldDataStr) {
             try {
@@ -49,7 +48,15 @@ function initData() {
 }
 
 function saveAppData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    } catch (e) {
+        console.error("Failed to save to local storage (likely quota exceeded):", e);
+        // We do not alert on every keystroke, but the catch prevents the app from breaking.
+        if (e.name === 'QuotaExceededError') {
+            console.warn("Storage quota exceeded. Some recent images may not be saved permanently.");
+        }
+    }
 }
 
 function autoSave() {
@@ -89,8 +96,9 @@ function autoSave() {
     });
 
     appData.trips[appData.currentTripId] = state;
-    saveAppData();
-    updatePreview();
+    
+    saveAppData(); // Safe to fail now due to try-catch
+    updatePreview(); // Always run so the UI stays synced!
 }
 
 // --- Multi-Trip Actions ---
@@ -113,7 +121,7 @@ function createNewTrip() {
 
 function duplicateTrip() {
     if (!appData.currentTripId) return;
-    autoSave(); // ensure current is saved
+    autoSave();
     
     const currentData = JSON.parse(JSON.stringify(appData.trips[appData.currentTripId]));
     const newId = generateId();
@@ -188,7 +196,7 @@ function loadTripIntoBuilder(tripId) {
             daysManager.appendChild(clone);
         });
     } else {
-        addDay(); // empty day if nothing
+        addDay();
     }
 
     updatePreview();
@@ -211,7 +219,7 @@ function openTripsModal() {
     container.innerHTML = '';
     
     const tripsArray = Object.entries(appData.trips).map(([id, data]) => ({ id, ...data }));
-    tripsArray.sort((a, b) => b.lastModified - a.lastModified); // newest first
+    tripsArray.sort((a, b) => b.lastModified - a.lastModified);
 
     if (tripsArray.length === 0) {
         container.innerHTML = '<p style="color: #94a3b8; text-align: center;">No saved trips found.</p>';
@@ -247,7 +255,7 @@ function deleteTrip(id, event) {
             appData.currentTripId = null;
         }
         saveAppData();
-        openTripsModal(); // refresh list
+        openTripsModal();
         if (!appData.currentTripId) {
             createNewTrip();
         }
@@ -296,18 +304,42 @@ function removeActivity(btn) {
     autoSave();
 }
 
+// --- Image Handling & Compression ---
 
-// --- Image Handling ---
+// Compress image to avoid LocalStorage 5MB quota errors
+function compressImage(base64Str, maxWidth, callback) {
+    const img = new Image();
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        callback(canvas.toDataURL('image/jpeg', 0.6)); // 60% quality jpeg
+    };
+    img.src = base64Str;
+}
 
 function handleCoverImageUpload(event) {
     const file = event.target.files[0];
     if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            const header = document.getElementById('docHeaderBanner');
-            header.style.backgroundImage = `url(${e.target.result})`;
-            header.style.display = 'block';
-            autoSave();
+            compressImage(e.target.result, 1200, function(compressedStr) {
+                const header = document.getElementById('docHeaderBanner');
+                header.style.backgroundImage = `url(${compressedStr})`;
+                header.style.display = 'block';
+                autoSave();
+            });
         }
         reader.readAsDataURL(file);
     }
@@ -326,8 +358,10 @@ function handleDayImagesUpload(input, event) {
     files.slice(0, 3 - currentCount).forEach(file => {
         const reader = new FileReader();
         reader.onload = function(e) {
-            thumbContainer.appendChild(createThumbnailElement(e.target.result, 'cover'));
-            autoSave();
+            compressImage(e.target.result, 600, function(compressedStr) {
+                thumbContainer.appendChild(createThumbnailElement(compressedStr, 'cover'));
+                autoSave();
+            });
         }
         reader.readAsDataURL(file);
     });
@@ -356,7 +390,6 @@ function removeImage(btn, event) {
     btn.closest('.thumb-container').remove();
     autoSave();
 }
-
 
 // --- Preview & Export ---
 
