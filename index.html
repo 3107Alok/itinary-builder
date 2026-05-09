@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Itinerary Builder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- html2pdf.js for client-side PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Builder Section -->
+        <div class="builder-section no-print">
+            <div class="glass-panel header-panel">
+                <h1><i class="fa-solid fa-map-location-dot"></i> TripSync Builder</h1>
+                <p>Create your beautiful dark-themed itinerary</p>
+            </div>
+
+            <!-- Trip Settings -->
+            <div class="glass-panel settings-panel">
+                <h2>1. Trip Details</h2>
+                <div class="input-group">
+                    <label><i class="fa-solid fa-heading"></i> Trip Title (e.g., UTTARAKHAND TRIP)</label>
+                    <input type="text" id="tripTitleInput" placeholder="Enter Trip Title..." oninput="autoSave()">
+                </div>
+                <div class="input-group">
+                    <label><i class="fa-solid fa-route"></i> Route Summary (e.g., Ghaziabad &rarr; Tungnath)</label>
+                    <input type="text" id="routeSummaryInput" placeholder="Enter Route Summary..." oninput="autoSave()">
+                </div>
+                <div class="input-group">
+                    <label><i class="fa-solid fa-clock"></i> Total Duration (e.g., 4 Days / 3 Nights)</label>
+                    <input type="text" id="durationInput" placeholder="4 Days / 3 Nights" oninput="autoSave()">
+                </div>
+                <div class="input-group">
+                    <label><i class="fa-solid fa-image"></i> Cover Image (Optional)</label>
+                    <input type="file" id="coverImageInput" accept="image/*" onchange="handleCoverImageUpload(event)">
+                </div>
+            </div>
+
+            <!-- Days Manager -->
+            <div class="days-manager" id="daysManager">
+                <!-- Days will be added here dynamically -->
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn primary-btn" onclick="addDay()"><i class="fa-solid fa-plus"></i> Add Day</button>
+                <button class="btn danger-btn" onclick="clearAllData()"><i class="fa-solid fa-trash-can"></i> Clear</button>
+                <button class="btn success-btn" onclick="downloadPDF()"><i class="fa-solid fa-download"></i> Download PDF</button>
+            </div>
+        </div>
+
+        <!-- Preview/Export Section -->
+        <div class="preview-section" id="exportContainer">
+            <div class="document-page" id="documentContent">
+                <!-- Header Banner -->
+                <div class="doc-header" id="docHeaderBanner">
+                    <div class="doc-header-overlay">
+                        <h1 id="docTripTitle">YOUR TRIP TITLE</h1>
+                        <p id="docRouteSummary" class="route-summary">Route Summary Here</p>
+                    </div>
+                </div>
+
+                <div class="doc-content-wrapper">
+                    <!-- Trip Details Summary -->
+                    <div class="doc-section doc-trip-details">
+                        <h2 class="section-title">Trip Details</h2>
+                        <table class="duration-table">
+                            <tr>
+                                <td class="dt-label">Total Duration</td>
+                                <td class="dt-value" id="docDuration">Duration Here</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Days Container -->
+                    <div id="docDaysContainer">
+                        <!-- Day sections injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="dayBuilderTemplate">
+        <div class="glass-panel day-panel">
+            <div class="day-header">
+                <h3>Day <span class="day-number"></span></h3>
+                <button class="icon-btn delete-btn" onclick="removeDay(this)" title="Remove Day"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <div class="input-group">
+                <label>Route (e.g., Ghaziabad to Rishikesh)</label>
+                <input type="text" class="day-route-input" placeholder="From to To..." oninput="autoSave()">
+            </div>
+            <div class="input-group">
+                <label>Transport Mode (e.g., Bus / Train)</label>
+                <input type="text" class="day-transport-input" placeholder="(Bus / Train)" oninput="autoSave()">
+            </div>
+            <div class="input-group row-group">
+                <div class="col">
+                    <label>Date</label>
+                    <input type="text" class="day-date-input" placeholder="e.g., 5 JUNE" oninput="autoSave()">
+                </div>
+                <div class="col">
+                    <label>Overnight Stay</label>
+                    <input type="text" class="day-stay-input" placeholder="Hotel / Location" oninput="autoSave()">
+                </div>
+            </div>
+            
+            <!-- Day Photos -->
+            <div class="day-images-manager">
+                <label>Day Photos (Max 3) - Click an image below to toggle Fit/Fill</label>
+                <input type="file" accept="image/*" multiple class="day-photo-input" onchange="handleDayImagesUpload(this, event)">
+                <div class="day-thumbnails">
+                    <!-- Thumbnails injected here -->
+                </div>
+            </div>
+
+            <div class="activities-manager">
+                <h4>Schedule / Activities</h4>
+                <div class="activities-list">
+                    <!-- Activity rows go here -->
+                </div>
+                <button class="btn small-btn outline-btn" onclick="addActivity(this)"><i class="fa-solid fa-plus"></i> Add Activity</button>
+            </div>
+        </div>
+    </template>
+
+    <template id="activityBuilderTemplate">
+        <div class="activity-row">
+            <input type="text" class="act-time" placeholder="Time (e.g. 6:30 am)" oninput="autoSave()">
+            <input type="text" class="act-desc" placeholder="Activity / Destination" oninput="autoSave()">
+            <input type="text" class="act-notes" placeholder="Notes" oninput="autoSave()">
+            <button class="icon-btn delete-btn" onclick="removeActivity(this)" title="Remove Activity"><i class="fa-solid fa-times"></i></button>
+        </div>
+    </template>
+
+    <!-- Document Output Templates -->
+    <template id="docDayTemplate">
+        <div class="doc-day-section">
+            <div class="doc-day-header">
+                <h2 class="doc-day-title">DAY <span class="doc-day-num"></span> &mdash; <span class="doc-day-route"></span> <span class="doc-day-transport"></span></h2>
+                <div class="doc-day-meta">
+                    <span class="doc-date"><i class="fa-regular fa-calendar"></i> <strong class="doc-date-val"></strong></span>
+                    <span class="doc-stay"><i class="fa-solid fa-bed"></i> <em class="doc-stay-val"></em></span>
+                </div>
+            </div>
+            
+            <div class="doc-day-images">
+                <!-- Medium images injected here -->
+            </div>
+
+            <table class="doc-activities-table">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;"><i class="fa-regular fa-clock"></i> Time</th>
+                        <th style="width: 45%;"><i class="fa-solid fa-location-dot"></i> Activity / Destination</th>
+                        <th style="width: 35%;"><i class="fa-regular fa-note-sticky"></i> Notes</th>
+                    </tr>
+                </thead>
+                <tbody class="doc-activities-tbody">
+                    <!-- Activity rows -->
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <script src="script.js"></script>
+</body>
+</html>
