@@ -51,10 +51,8 @@ function saveAppData() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
     } catch (e) {
-        console.error("Failed to save to local storage (likely quota exceeded):", e);
-        // We do not alert on every keystroke, but the catch prevents the app from breaking.
         if (e.name === 'QuotaExceededError') {
-            console.warn("Storage quota exceeded. Some recent images may not be saved permanently.");
+            console.warn("Storage quota exceeded.");
         }
     }
 }
@@ -66,7 +64,7 @@ function autoSave() {
         tripTitle: document.getElementById('tripTitleInput').value,
         routeSummary: document.getElementById('routeSummaryInput').value,
         duration: document.getElementById('durationInput').value,
-        coverImage: document.getElementById('docHeaderBanner').style.backgroundImage,
+        coverImage: document.getElementById('docHeaderBanner') ? document.getElementById('docHeaderBanner').style.backgroundImage : '',
         lastModified: Date.now(),
         days: []
     };
@@ -97,9 +95,18 @@ function autoSave() {
 
     appData.trips[appData.currentTripId] = state;
     
-    saveAppData(); // Safe to fail now due to try-catch
-    updatePreview(); // Always run so the UI stays synced!
+    saveAppData();
+    debouncedUpdatePreview();
 }
+
+let previewTimeout = null;
+function debouncedUpdatePreview() {
+    clearTimeout(previewTimeout);
+    previewTimeout = setTimeout(() => {
+        updatePreview();
+    }, 300); // 300ms delay to prevent typing lag during DOM height calculations
+}
+
 
 // --- Multi-Trip Actions ---
 
@@ -147,16 +154,9 @@ function loadTripIntoBuilder(tripId) {
     document.getElementById('routeSummaryInput').value = state.routeSummary || '';
     document.getElementById('durationInput').value = state.duration || '';
     
-    const docHeader = document.getElementById('docHeaderBanner');
-    if (state.coverImage && state.coverImage !== 'none' && state.coverImage !== '') {
-        docHeader.style.backgroundImage = state.coverImage;
-        docHeader.style.display = 'block';
-    } else {
-        docHeader.style.backgroundImage = '';
-        docHeader.style.display = 'none';
-        document.getElementById('coverImageInput').value = '';
-    }
-
+    // We don't touch docHeaderBanner directly here because we rewrite the DOM in updatePreview
+    // Just set the hidden input if needed.
+    
     const daysManager = document.getElementById('daysManager');
     daysManager.innerHTML = '';
     dayCount = 0;
@@ -306,7 +306,6 @@ function removeActivity(btn) {
 
 // --- Image Handling & Compression ---
 
-// Compress image to avoid LocalStorage 5MB quota errors
 function compressImage(base64Str, maxWidth, callback) {
     const img = new Image();
     img.onload = function() {
@@ -324,7 +323,7 @@ function compressImage(base64Str, maxWidth, callback) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
         
-        callback(canvas.toDataURL('image/jpeg', 0.6)); // 60% quality jpeg
+        callback(canvas.toDataURL('image/jpeg', 0.6));
     };
     img.src = base64Str;
 }
@@ -335,10 +334,11 @@ function handleCoverImageUpload(event) {
         const reader = new FileReader();
         reader.onload = function(e) {
             compressImage(e.target.result, 1200, function(compressedStr) {
-                const header = document.getElementById('docHeaderBanner');
-                header.style.backgroundImage = `url(${compressedStr})`;
-                header.style.display = 'block';
-                autoSave();
+                if (appData.currentTripId) {
+                    appData.trips[appData.currentTripId].coverImage = `url(${compressedStr})`;
+                    saveAppData();
+                    updatePreview(); // force update instantly for images
+                }
             });
         }
         reader.readAsDataURL(file);
@@ -391,26 +391,68 @@ function removeImage(btn, event) {
     autoSave();
 }
 
-// --- Preview & Export ---
+// --- Pagination Preview & Export ---
+
+function createNewPageElement() {
+    const page = document.createElement('div');
+    page.className = 'document-page';
+    page.id = 'docPage_' + Math.random().toString(36).substr(2, 5);
+    
+    const wrapper = document.createElement('div');
+    wrapper.className = 'doc-content-wrapper';
+    page.appendChild(wrapper);
+    
+    return { page, wrapper };
+}
 
 function updatePreview() {
-    const titleVal = document.getElementById('tripTitleInput').value || 'YOUR TRIP TITLE';
-    const routeVal = document.getElementById('routeSummaryInput').value || 'Route Summary';
-    
-    document.getElementById('docTripTitle').textContent = titleVal;
-    document.getElementById('docRouteSummary').textContent = routeVal;
-    document.getElementById('docDuration').textContent = document.getElementById('durationInput').value || 'Duration Here';
+    const state = appData.trips[appData.currentTripId];
+    if (!state) return;
 
-    const docHeader = document.getElementById('docHeaderBanner');
-    if (titleVal !== 'YOUR TRIP TITLE' || docHeader.style.backgroundImage) {
-        docHeader.style.display = 'block';
-    } else {
-        docHeader.style.display = 'none';
+    const titleVal = state.tripTitle || 'YOUR TRIP TITLE';
+    const routeVal = state.routeSummary || 'Route Summary';
+    const durationVal = state.duration || 'Duration Here';
+    
+    const exportContainer = document.getElementById('exportContainer');
+    exportContainer.innerHTML = '';
+
+    // Create first page
+    let { page: currentPage, wrapper: currentWrapper } = createNewPageElement();
+    exportContainer.appendChild(currentPage);
+
+    // --- 1. Construct Header ---
+    if (titleVal !== 'YOUR TRIP TITLE' || (state.coverImage && state.coverImage !== 'none')) {
+        const docHeader = document.createElement('div');
+        docHeader.className = 'doc-header';
+        docHeader.id = 'docHeaderBanner';
+        if (state.coverImage && state.coverImage !== 'none') {
+            docHeader.style.backgroundImage = state.coverImage;
+        }
+        
+        docHeader.innerHTML = `
+            <div class="doc-header-overlay">
+                <h1 id="docTripTitle">${titleVal}</h1>
+                <p id="docRouteSummary" class="route-summary">${routeVal}</p>
+            </div>
+        `;
+        currentPage.insertBefore(docHeader, currentWrapper);
     }
 
-    const docDaysContainer = document.getElementById('docDaysContainer');
-    docDaysContainer.innerHTML = '';
+    // --- 2. Construct Trip Details ---
+    const tripDetails = document.createElement('div');
+    tripDetails.className = 'doc-section doc-trip-details';
+    tripDetails.innerHTML = `
+        <h2 class="section-title">Trip Details</h2>
+        <table class="duration-table">
+            <tr>
+                <td class="dt-label">Total Duration</td>
+                <td class="dt-value">${durationVal}</td>
+            </tr>
+        </table>
+    `;
+    currentWrapper.appendChild(tripDetails);
 
+    // --- 3. Construct Days with Pagination ---
     document.querySelectorAll('.day-panel').forEach(panel => {
         const dayId = panel.dataset.dayId;
         const route = panel.querySelector('.day-route-input').value || 'Route Summary';
@@ -455,14 +497,37 @@ function updatePreview() {
             tbody.innerHTML = `<tr><td>&nbsp;</td><td></td><td></td></tr>`;
         }
 
-        docDaysContainer.appendChild(docClone);
+        // Append the day to current wrapper
+        currentWrapper.appendChild(docClone);
+        const appendedDay = currentWrapper.lastElementChild;
+
+        // Check Pagination: Does this day make the page overflow?
+        // Note: scrollHeight evaluates true height. clientHeight is exactly 297mm (1122px).
+        if (currentPage.scrollHeight > currentPage.clientHeight) {
+            // Only move to next page if it's NOT the only thing on this page
+            // (If a day is just massively tall, moving it to an empty page won't help)
+            if (currentWrapper.children.length > 1) {
+                appendedDay.remove(); // remove from current page
+                
+                // Create new page
+                const newPageObj = createNewPageElement();
+                exportContainer.appendChild(newPageObj.page);
+                
+                // Append day to new page
+                newPageObj.wrapper.appendChild(appendedDay);
+                
+                // Update pointers
+                currentPage = newPageObj.page;
+                currentWrapper = newPageObj.wrapper;
+            }
+        }
     });
 }
 
 function downloadPDF() {
-    const element = document.getElementById('documentContent');
-    const tripTitle = document.getElementById('tripTitleInput').value || 'Itinerary';
-    const filename = tripTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf';
+    const exportContainer = document.getElementById('exportContainer');
+    const titleVal = document.getElementById('tripTitleInput').value || 'Itinerary';
+    const filename = titleVal.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf';
     
     document.body.classList.add('is-printing');
     
@@ -479,7 +544,9 @@ function downloadPDF() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating PDF...';
     btn.disabled = true;
 
-    html2pdf().set(opt).from(element).save().then(() => {
+    // html2pdf automatically handles multiple children of the container as continuous flow,
+    // but because we set `page-break-after: always;` on .document-page in CSS, it splits perfectly!
+    html2pdf().set(opt).from(exportContainer).save().then(() => {
         document.body.classList.remove('is-printing');
         btn.innerHTML = originalText;
         btn.disabled = false;
